@@ -9,17 +9,21 @@ import java.io.*;
 
 // TODO Make individual classes.
 
-public class Client extends Applet implements Runnable, KeyListener{
-	
+public class Client extends Applet implements Runnable, KeyListener
+{
+	private static final int LEFT = 38, UP = 39, RIGHT = 40, DOWN = 41;
+	private static final int SLOT_LEFT = 0, SLOT_UP = 1, SLOT_RIGHT = 2, SLOT_DOWN = 3;
 	static Socket socket;
 	static DataInputStream in;
 	static DataOutputStream out;
+	private final int MAX_USER_COUNT = 5;
 	
-	int playerid, uA = 5, playerx, playery;
-	boolean left, up, right, down; 
+	int playerid, playerx, playery;
+	boolean[] directions = new boolean[4];
+	//left, up, right, down;
 	
-	int[] x = new int[uA];
-	int[] y = new int[uA];
+	int[] x = new int[MAX_USER_COUNT];
+	int[] y = new int[MAX_USER_COUNT];
 	
 	public void init(){
 		setSize(600, 600);
@@ -51,27 +55,28 @@ public class Client extends Applet implements Runnable, KeyListener{
 		
 		//
 	}
+
+	private int getSlot(int code) {
+		switch (code) {
+			case LEFT: return SLOT_LEFT;
+			case UP: return SLOT_UP;
+			case RIGHT: return SLOT_RIGHT;
+			case DOWN: return SLOT_DOWN;
+		}
+		return -1;
+	}
+
 	public void keyPressed(KeyEvent e) {
-		if(e.getKeyCode() == 38){//left
-			left = true;
-		}if(e.getKeyCode() == 39){//up
-			up = true;
-		}if(e.getKeyCode() == 40){//right
-			right = true;
-		}if(e.getKeyCode() == 41){//down
-			down = true;
+		int slot = getSlot(e.getKeyCode());
+		if (slot != -1) {
+			directions[slot] = true;
 		}
 	}
 
 	public void keyReleased(KeyEvent e) {
-		if(e.getKeyCode() == 38){//left
-			left = false;
-		}if(e.getKeyCode() == 39){//up
-			up = false;
-		}if(e.getKeyCode() == 40){//right
-			right = false;
-		}if(e.getKeyCode() == 41){//down
-			down = false;
+		int slot = getSlot(e.getKeyCode());
+		if (slot != -1) {
+			directions[slot] = false;
 		}
 	}
 
@@ -79,62 +84,66 @@ public class Client extends Applet implements Runnable, KeyListener{
 		
 	}
 
-
-
-
-public void updateCoordinates(int pid, int x, int y){
-	this.x[pid] = x;
-	this.y[pid] = y;
-}
-
-public void paint(Graphics g){
-	for(int i = 0; 1 < uA;i++){
-	g.drawOval(x[i], y[i], 5, 5);
+	public void updateCoordinates(int pid, int x, int y){
+		this.x[pid] = x;
+		this.y[pid] = y;
 	}
-}
 
-class Input implements Runnable{
-	
-	DataInputStream in;
-	Client client;
-	
-	public Input(DataInputStream in, Client c){
-		this.in = in;
-		this.client = c;
+	public void paint(Graphics g){
+		for (int i = 0; i < MAX_USER_COUNT;i++){
+			g.drawOval(x[i], y[i], 5, 5);
+		}
 	}
+
+	class Input implements Runnable
+	{
+		DataInputStream in;
+		Client client;
 	
-	public void run() {
-		while(true){
-			try {
-				int playerid = in.readInt();
-				int x = in.readInt();
-				int y = in.readInt();
-				
-				//
-				client.updateCoordinates(playerid, x, y);
-				
+		public Input(DataInputStream in, Client c){
+			this.in = in;
+			this.client = c;
+		}
+	
+		public void run() {
+			while (true) {
+				try {
+					int playerid = in.readInt();
+					int x = in.readInt();
+					int y = in.readInt();
+					System.out.println(String.format("X: %d Y: %d", x, y));
+
+					//
+					client.updateCoordinates(playerid, x, y);
+
 				} catch (IOException e) {
 					e.printStackTrace();
 				}
 			}
-		
 		}
-	
 	}
 
-public void run() {
-	
-	
-	while (true){
-			if(right == true){
+	public void run()
+	{
+		while (true){
+			boolean doUpdate = false;
+			if (directions[SLOT_RIGHT]) {
 				playerx += 10;
-			}if(left == true){
+				doUpdate = true;
+			}
+			if(directions[SLOT_LEFT]){
 				playerx -= 10;
-			}if(up == true){
+				doUpdate = true;
+			}
+			if(directions[SLOT_UP]){
 				playery -= 10;
-			}if(down == true){
+				doUpdate = true;
+			}
+			if(directions[SLOT_DOWN]){
 				playery += 1;
-			}if(up || down || left || right){
+				doUpdate = true;
+			}
+			if(doUpdate){
 				try {
 					out.writeInt(playerid);
 					out.writeInt(playerx);
@@ -142,12 +151,12 @@ public void run() {
 				} catch (IOException e) {System.out.println("Error sending Coordinates.");}
 			}
 			repaint();
-		try {
-			Thread.sleep(400);
-		} catch (InterruptedException e) {
-			e.printStackTrace();
+			try {
+				Thread.sleep(400);
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+			}
+			updateCoordinates(playerid, x[playerid], y[playerid]);
 		}
-		updateCoordinates(playerid, x[playerid], y[playerid]);
 	}
-}
 }
